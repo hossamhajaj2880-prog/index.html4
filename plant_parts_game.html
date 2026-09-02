@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رحلة التعرف على أجزاء النبات 🌱</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            font-family: 'Cairo', sans-serif;
+            touch-action: manipulation;
+        }
+
+        body {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Pulsing & Glow Animations */
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(76, 175, 80, 0.6); }
+            50% { transform: scale(1.1); box-shadow: 0 0 25px rgba(255, 235, 59, 0.9); }
+        }
+
+        @keyframes float-gentle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-float {
+            animation: float-gentle 3s ease-in-out infinite;
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .animate-pop {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Hotspot Buttons styling */
+        .hotspot-btn {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #ffeb3b;
+            border: 3px solid #f57f17;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hotspot-btn:hover {
+            transform: scale(1.25) rotate(10deg);
+        }
+
+        .hotspot-btn.discovered {
+            background: #4caf50;
+            border-color: #1b5e20;
+            color: white;
+        }
+
+        /* Drop Zone styling */
+        .drop-target {
+            border: 3px dashed #4caf50;
+            background: rgba(255, 255, 255, 0.85);
+            transition: all 0.3s ease;
+        }
+
+        .drop-target.hovered {
+            background: rgba(200, 230, 201, 0.95);
+            border-color: #2e7d32;
+            transform: scale(1.05);
+        }
+
+        .drop-target.correct {
+            border-style: solid;
+            border-color: #2e7d32;
+            background: #e8f5e9;
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+        }
+
+        .draggable-item {
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        .draggable-item.selected {
+            ring: 4px solid #f57f17;
+            transform: scale(1.05);
+        }
+
+        /* Confetti particle canvas */
+        #canvas-confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-gray-800">
+
+    <!-- Canvas for celebration effects -->
+    <canvas id="canvas-confetti"></canvas>
+
+    <!-- Header Navigation & Info Bar -->
+    <header class="bg-white/90 backdrop-blur-md shadow-md border-b-4 border-green-500 sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Game Title & Sound Control -->
+            <div class="flex items-center gap-3">
+                <span class="text-3xl animate-float">🌱</span>
+                <h1 class="text-xl md:text-2xl font-black text-green-800 tracking-tight">رحلة التعرف على أجزاء النبات</h1>
+                <button id="sound-toggle-btn" onclick="toggleSound()" class="p-2 rounded-full bg-green-100 hover:bg-green-200 text-green-700 text-lg transition-transform active:scale-90" title="تشغيل / كتم الصوت">
+                    <i id="sound-icon" class="fas fa-volume-up"></i>
+                </button>
+            </div>
+
+            <!-- Score & Progress Display (Hidden on Welcome Screen) -->
+            <div id="game-stats-bar" class="hidden flex items-center gap-4 bg-green-50 px-4 py-2 rounded-2xl border-2 border-green-300">
+                <!-- Stars / Points -->
+                <div class="flex items-center gap-1">
+                    <i class="fas fa-star text-yellow-400 text-2xl drop-shadow-sm"></i>
+                    <span id="score-display" class="font-extrabold text-2xl text-amber-700">0</span>
+                    <span class="text-xs font-bold text-amber-600">نقطة</span>
+                </div>
+
+                <!-- Stage Indicator -->
+                <div class="h-6 w-0.5 bg-green-300"></div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold text-gray-500">المرحلة الحالية</span>
+                    <span id="stage-display-text" class="font-black text-sm text-green-800">١: اضغط واكتشف</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progress-bar-container" class="hidden max-w-5xl mx-auto mt-2 bg-gray-200 h-3 rounded-full overflow-hidden border border-gray-300">
+            <div id="progress-bar-fill" class="bg-gradient-to-r from-yellow-400 via-green-500 to-emerald-600 h-full w-0 transition-all duration-500 ease-out rounded-full"></div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow flex items-center justify-center p-3 md:p-6 max-w-5xl mx-auto w-full">
+
+        <!-- ========================================== -->
+        <!-- SCREEN 0: WELCOME SCREEN                  -->
+        <!-- ========================================== -->
+        <section id="screen-start" class="w-full bg-white/95 rounded-3xl p-6 md:p-10 shadow-2xl border-4 border-green-400 text-center animate-pop">
+            <div class="max-w-2xl mx-auto flex flex-col items-center">
+                <div class="relative mb-6">
+                    <div class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-tr from-green-300 to-yellow-200 flex items-center justify-center shadow-inner border-4 border-white animate-float">
+                        <span class="text-7xl md:text-8xl">🌻</span>
+                    </div>
+                    <span class="absolute -bottom-2 -right-2 bg-amber-400 text-amber-900 font-extrabold text-sm px-3 py-1 rounded-full shadow border-2 border-white">لعبة تعليمية 🌟</span>
+                </div>
+
+                <h2 class="text-3xl md:text-4xl font-black text-green-900 mb-3">مرحباً بك يا بطل المستقبل! 👋</h2>
+                <p class="text-lg md:text-xl text-gray-700 font-bold mb-6 leading-relaxed">
+                    هل أنت مستعد للانطلاق في رحلة مشوقة لاستكشاف <span class="text-green-700 font-black">أجزاء النبات العجيبة</span> وتكتشف سر حياة النباتات؟
+                </p>
+
+                <!-- Stages Overview Card -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full mb-8">
+                    <div class="bg-green-50 p-4 rounded-2xl border-2 border-green-200 flex flex-col items-center">
+                        <span class="text-3xl mb-1">👀</span>
+                        <span class="font-extrabold text-green-800 text-sm">المرحلة ١</span>
+                        <span class="text-xs text-gray-600 font-semibold">اضغط واكتشف الأجزاء</span>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-2xl border-2 border-yellow-200 flex flex-col items-center">
+                        <span class="text-3xl mb-1">🖱️</span>
+                        <span class="font-extrabold text-yellow-800 text-sm">المرحلة ٢</span>
+                        <span class="text-xs text-gray-600 font-semibold">طابق الأسماء في أماكنها</span>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-2xl border-2 border-emerald-200 flex flex-col items-center">
+                        <span class="text-3xl mb-1">🧠</span>
+                        <span class="font-extrabold text-emerald-800 text-sm">المرحلة ٣</span>
+                        <span class="text-xs text-gray-600 font-semibold">اختبار "من أنا؟" الذكي</span>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="w-full md:w-auto px-10 py-5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-black text-2xl rounded-2xl shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 active:translate-y-0 border-b-4 border-green-800 flex items-center justify-center gap-3">
+                    <i class="fas fa-play text-yellow-300"></i>
+                    <span>ابدأ اللعبة الآن</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: STAGE 1 (Press & Discover)      -->
+        <!-- ========================================== -->
+        <section id="screen-stage1" class="hidden w-full flex-col gap-6 animate-pop">
+            
+            <!-- Instructions Banner -->
+            <div class="bg-yellow-100 border-2 border-yellow-400 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">👀</span>
+                    <div>
+                        <h3 class="font-black text-yellow-900 text-lg">المرحلة الأولى: اضغط واكتشف!</h3>
+                        <p class="text-sm font-bold text-yellow-800">اضغط على دوائر الاستكشاف الصفراء 🟡 المضيئة لمعرفة كل جزء ووظيفته.</p>
+                    </div>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl font-black text-green-800 border border-yellow-300 shadow-inner">
+                    <span id="s1-counter">0</span> / 5 مُكتشف
+                </div>
+            </div>
+
+            <!-- Main Plant Canvas / Interactive Area -->
+            <div class="bg-white rounded-3xl p-4 md:p-6 shadow-xl border-4 border-green-300 relative flex flex-col md:flex-row gap-6 items-center">
+                
+                <!-- Plant Image & Hotspots Container -->
+                <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center bg-emerald-50/50 rounded-2xl overflow-hidden border-2 border-green-100 p-2">
+                    
+                    <!-- Plant Image -->
+                    <img id="plant-img-s1" src="plant.png" onerror="loadFallbackSvg(this)" alt="نبات الفراولة" class="max-h-full object-contain filter drop-shadow-md">
+
+                    <!-- Hotspot 1: Flowers (الأزهار) -->
+                    <button onclick="discoverPart('flowers')" class="hotspot-btn animate-pulse-glow" style="top: 18%; right: 28%;" title="الأزهار">
+                        <i class="fas fa-search text-xs text-amber-900"></i>
+                    </button>
+
+                    <!-- Hotspot 2: Leaves (الأوراق) -->
+                    <button onclick="discoverPart('leaves')" class="hotspot-btn animate-pulse-glow" style="top: 26%; left: 30%;" title="الأوراق">
+                        <i class="fas fa-search text-xs text-amber-900"></i>
+                    </button>
+
+                    <!-- Hotspot 3: Fruits (الثمار) -->
+                    <button onclick="discoverPart('fruits')" class="hotspot-btn animate-pulse-glow" style="top: 52%; right: 28%;" title="الثمار">
+                        <i class="fas fa-search text-xs text-amber-900"></i>
+                    </button>
+
+                    <!-- Hotspot 4: Stem (الساق) -->
+                    <button onclick="discoverPart('stem')" class="hotspot-btn animate-pulse-glow" style="top: 58%; left: 45%;" title="الساق">
+                        <i class="fas fa-search text-xs text-amber-900"></i>
+                    </button>
+
+                    <!-- Hotspot 5: Roots (الجذور) -->
+                    <button onclick="discoverPart('roots')" class="hotspot-btn animate-pulse-glow" style="top: 82%; left: 48%;" title="الجذور">
+                        <i class="fas fa-search text-xs text-amber-900"></i>
+                    </button>
+                </div>
+
+                <!-- Part Info Box (Appears when clicked) -->
+                <div class="w-full md:w-1/2 flex flex-col justify-between min-h-[300px]">
+                    
+                    <div id="s1-default-prompt" class="h-full flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-green-50 to-emerald-50 rounded-2xl border-2 border-dashed border-green-300">
+                        <span class="text-6xl mb-3 animate-float">👆</span>
+                        <h4 class="font-extrabold text-xl text-green-900 mb-2">اضغط على دوائر البحث!</h4>
+                        <p class="text-gray-600 font-semibold text-sm">اختر أي جزء في الصورة لتعرف اسمه العجيب وفائدته العظيمة للنبات.</p>
+                    </div>
+
+                    <!-- Dynamic Card Content -->
+                    <div id="s1-info-card" class="hidden h-full flex-col justify-between bg-gradient-to-br from-green-500 to-emerald-700 text-white p-6 rounded-2xl shadow-lg border-2 border-green-300 animate-pop">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span id="s1-card-icon" class="text-5xl bg-white/20 p-3 rounded-2xl backdrop-blur-sm">🌱</span>
+                                <span class="bg-yellow-400 text-yellow-950 font-black px-4 py-1.5 rounded-full text-sm shadow">معلومة قيمة 💡</span>
+                            </div>
+                            <h3 id="s1-card-title" class="text-3xl font-black mb-3 text-yellow-300">اسم الجزء</h3>
+                            <p id="s1-card-desc" class="text-lg font-bold leading-relaxed text-emerald-50">وصف دقيق وسهل لوظيفة الجزء...</p>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-white/20 flex justify-end">
+                            <span class="text-xs font-bold bg-white/10 px-3 py-1 rounded-lg">استكشف بقية الأجزاء 🚀</span>
+                        </div>
+                    </div>
+
+                    <!-- Next Stage Button (Appears when all 5 are discovered) -->
+                    <button id="s1-next-btn" onclick="goToStage(2)" class="hidden mt-6 w-full py-4 bg-yellow-400 hover:bg-yellow-300 text-amber-950 font-black text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] border-b-4 border-amber-600 flex items-center justify-center gap-2 animate-bounce">
+                        <span>انتقل إلى المرحلة الثانية</span>
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: STAGE 2 (Drag & Drop / Match)   -->
+        <!-- ========================================== -->
+        <section id="screen-stage2" class="hidden w-full flex-col gap-6 animate-pop">
+            
+            <!-- Instructions Banner -->
+            <div class="bg-green-100 border-2 border-green-400 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🖱️</span>
+                    <div>
+                        <h3 class="font-black text-green-900 text-lg">المرحلة الثانية: اسحب وضع أو اضغط لتطابق!</h3>
+                        <p class="text-sm font-bold text-green-800">اسحب اسم الجزء وضعه في المربع المناسب على الصورة (أو اضغط على الكارت ثم اضغط المربع).</p>
+                    </div>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl font-black text-green-800 border border-green-300 shadow-inner">
+                    <span id="s2-counter">0</span> / 5 مكتمل
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-4 md:p-6 shadow-xl border-4 border-green-300 flex flex-col lg:flex-row gap-6 items-center">
+                
+                <!-- Plant Canvas with Target Drop Zones Overlay -->
+                <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center bg-emerald-50/50 rounded-2xl overflow-hidden border-2 border-green-100 p-2">
+                    
+                    <img id="plant-img-s2" src="plant.png" onerror="loadFallbackSvg(this)" alt="نبات الفراولة" class="max-h-full object-contain filter drop-shadow-md">
+
+                    <!-- Drop Zone: Flowers (الأزهار) -->
+                    <div data-part="flowers" class="drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md" style="top: 15%; right: 18%; width: 100px; height: 42px;">
+                        <span class="placeholder-text text-gray-400">مربع الأزهار</span>
+                    </div>
+
+                    <!-- Drop Zone: Leaves (الأوراق) -->
+                    <div data-part="leaves" class="drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md" style="top: 22%; left: 18%; width: 100px; height: 42px;">
+                        <span class="placeholder-text text-gray-400">مربع الأوراق</span>
+                    </div>
+
+                    <!-- Drop Zone: Fruits (الثمار) -->
+                    <div data-part="fruits" class="drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md" style="top: 50%; right: 18%; width: 100px; height: 42px;">
+                        <span class="placeholder-text text-gray-400">مربع الثمار</span>
+                    </div>
+
+                    <!-- Drop Zone: Stem (الساق) -->
+                    <div data-part="stem" class="drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md" style="top: 56%; left: 25%; width: 100px; height: 42px;">
+                        <span class="placeholder-text text-gray-400">مربع الساق</span>
+                    </div>
+
+                    <!-- Drop Zone: Roots (الجذور) -->
+                    <div data-part="roots" class="drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md" style="top: 80%; left: 28%; width: 100px; height: 42px;">
+                        <span class="placeholder-text text-gray-400">مربع الجذور</span>
+                    </div>
+
+                </div>
+
+                <!-- Draggable Cards Bank -->
+                <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                    <h4 class="font-extrabold text-lg text-green-900 border-b-2 border-green-200 pb-2">بطاقات الأسماء:</h4>
+                    
+                    <div id="draggable-bank" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3 min-h-[180px]">
+                        <!-- Cards will be dynamically shuffled & inserted -->
+                    </div>
+
+                    <!-- Feedback Alert Message -->
+                    <div id="s2-feedback" class="min-h-[50px] flex items-center justify-center rounded-2xl p-3 font-black text-center text-base transition-all duration-300 opacity-0">
+                        ...
+                    </div>
+
+                    <!-- Stage 2 Next Button -->
+                    <button id="s2-next-btn" onclick="goToStage(3)" class="hidden w-full py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black text-xl rounded-2xl shadow-lg border-b-4 border-green-900 flex items-center justify-center gap-2 animate-bounce">
+                        <span>ممتاز! انتقل إلى مرحلة الأسئلة</span>
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 3: STAGE 3 (Who Am I Quiz)         -->
+        <!-- ========================================== -->
+        <section id="screen-stage3" class="hidden w-full flex-col gap-6 animate-pop">
+            
+            <!-- Instructions Banner -->
+            <div class="bg-emerald-100 border-2 border-emerald-400 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🧠</span>
+                    <div>
+                        <h3 class="font-black text-emerald-900 text-lg">المرحلة الثالثة: مسابقة "من أنا؟"</h3>
+                        <p class="text-sm font-bold text-emerald-800">اقرأ لغز النبات جيداً واختر الإجابة الصحيحة لتكسب النجوم!</p>
+                    </div>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl font-black text-emerald-800 border border-emerald-300 shadow-inner">
+                    السؤال <span id="s3-quiz-index">1</span> من <span id="s3-quiz-total">5</span>
+                </div>
+            </div>
+
+            <!-- Quiz Card -->
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-emerald-300 flex flex-col gap-6">
+                
+                <!-- Question Box -->
+                <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-6 rounded-2xl shadow-md relative overflow-hidden">
+                    <span class="absolute -bottom-4 -left-4 text-7xl opacity-20">❓</span>
+                    <span class="bg-yellow-400 text-amber-950 font-black text-xs px-3 py-1 rounded-full mb-2 inline-block">لغز اليوم 🌱</span>
+                    <h3 id="s3-question-text" class="text-2xl md:text-3xl font-black leading-snug">
+                        جارٍ تحميل السؤال...
+                    </h3>
+                </div>
+
+                <!-- Options List -->
+                <div id="s3-options-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Options buttons populated dynamically -->
+                </div>
+
+                <!-- Feedback & Short Explanation -->
+                <div id="s3-explanation-box" class="hidden p-5 rounded-2xl font-bold border-2 animate-pop">
+                    <div id="s3-explanation-title" class="font-black text-xl mb-1 flex items-center gap-2"></div>
+                    <div id="s3-explanation-text" class="text-base leading-relaxed"></div>
+                </div>
+
+                <!-- Next Question Button -->
+                <div class="flex justify-end mt-2">
+                    <button id="s3-next-q-btn" onclick="nextQuestion()" class="hidden px-8 py-4 bg-yellow-400 hover:bg-yellow-300 text-amber-950 font-black text-xl rounded-2xl shadow-lg border-b-4 border-amber-600 flex items-center gap-3 transition-transform hover:scale-105">
+                        <span>السؤال التالي</span>
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 4: VICTORY & END SCREEN             -->
+        <!-- ========================================== -->
+        <section id="screen-end" class="hidden w-full bg-white/95 rounded-3xl p-6 md:p-10 shadow-2xl border-4 border-yellow-400 text-center animate-pop">
+            <div class="max-w-2xl mx-auto flex flex-col items-center">
+                
+                <!-- Champion Badge Animation -->
+                <div class="relative mb-6">
+                    <div class="w-36 h-36 md:w-44 md:h-44 rounded-full bg-gradient-to-tr from-yellow-300 via-amber-400 to-yellow-500 flex items-center justify-center shadow-xl border-4 border-white animate-bounce">
+                        <span class="text-7xl md:text-8xl">🏆</span>
+                    </div>
+                    <span class="absolute -bottom-2 bg-green-600 text-white font-black text-base px-4 py-1 rounded-full shadow-lg border-2 border-white">خبير النباتات المتميز! 🌟</span>
+                </div>
+
+                <h2 class="text-3xl md:text-4xl font-black text-green-900 mb-2">ممتاز! عمل بطل حقيقي! 🎉</h2>
+                <p class="text-xl text-gray-700 font-bold mb-6">«لقد أصبحت خبيرًا في أجزاء النبات 🌱🏆»</p>
+
+                <!-- Final Score Summary Card -->
+                <div class="bg-gradient-to-br from-green-50 to-emerald-100 p-6 rounded-3xl border-2 border-green-300 w-full mb-8 shadow-inner flex flex-col gap-4">
+                    <div class="text-center">
+                        <span class="text-sm font-bold text-gray-500 block">مجموع النجوم المكتسبة</span>
+                        <div class="flex items-center justify-center gap-2 mt-1">
+                            <i class="fas fa-star text-yellow-400 text-4xl drop-shadow"></i>
+                            <span id="final-stars-count" class="text-5xl font-black text-amber-700">0</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 pt-4 border-t border-green-200 text-xs md:text-sm font-extrabold text-green-900">
+                        <div class="bg-white/80 p-2 rounded-xl">✔️ تعرفت على الأجزاء</div>
+                        <div class="bg-white/80 p-2 rounded-xl">✔️ طابقت المواقع</div>
+                        <div class="bg-white/80 p-2 rounded-xl">✔️ أجبْت عن الأسئلة</div>
+                    </div>
+                </div>
+
+                <!-- Play Again Button -->
+                <button onclick="restartGame()" class="px-10 py-5 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-amber-950 font-black text-2xl rounded-2xl shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 active:translate-y-0 border-b-4 border-amber-800 flex items-center justify-center gap-3">
+                    <i class="fas fa-redo text-amber-900"></i>
+                    <span>العب مرة أخرى 🔄</span>
+                </button>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs font-bold text-green-800/70">
+        لعبة أجزاء النبات التفاعلية للأطفال 🌱 | مصممة للتعلم والسرور
+    </footer>
+
+    <script>
+        /* ==========================================================
+           GAME STATE & DATA STRUCTURES
+           ========================================================== */
+        
+        // Parts Dictionary (Arabic names, icons, descriptions)
+        const PLANT_PARTS = {
+            roots: {
+                id: 'roots',
+                name: 'الجذور',
+                icon: '🪴',
+                desc: 'تنمو الجذور تحت التربة، وتعمل كمرساة قوية تثبت النبات، كما تمتص الماء والأملاح المعدنية من الأرض ليتغذى النبات.'
+            },
+            stem: {
+                id: 'stem',
+                name: 'الساق',
+                icon: '🎋',
+                desc: 'الساق هي الدعامة القوية التي تحمل الأوراق والأزهار، وتقوم بنقل الماء والفيض الغذائي بين الجذور والأوراق.'
+            },
+            leaves: {
+                id: 'leaves',
+                name: 'الأوراق',
+                icon: '🍃',
+                desc: 'الأوراق هي مصنع الغذاء الأخضر! تستخدم ضوء الشمس والهواء والماء لصنع الطعام اللذيذ للنبات بعملية البناء الضوئي.'
+            },
+            flowers: {
+                id: 'flowers',
+                name: 'الأزهار',
+                icon: '🌸',
+                desc: 'الأزهار هي الجزء الملون الجميل وذو الرائحة الزكية، وتعتبر المسؤولة عن التكاثر وتكوين الثمار والبذور.'
+            },
+            fruits: {
+                id: 'fruits',
+                name: 'الثمار',
+                icon: '🍓',
+                desc: 'الثمار هي الجزء اللذيذ والمغذي الذي يحمي البذور بداخله، وتتغذى عليها الكائنات الحية كالإنسان والحيوان.'
+            }
+        };
+
+        // Quiz Questions (Min 5)
+        const QUIZ_QUESTIONS = [
+            {
+                question: 'أنا جزء أكون موجودًا غالباً تحت التربة، وأقوم بامتصاص الماء والأملاح وتثبيت النبات، فمن أنا؟',
+                correct: 'roots',
+                options: ['roots', 'stem', 'leaves'],
+                explanation: 'رائع! الجذور تمتص الماء والمغذيات من التربة وتثبت النبات بقوة!'
+            },
+            {
+                question: 'أنا الجزء الأخضر الذي يقوم بصنع الغذاء للنبات بمساعدة ضوء الشمس والهواء، فمن أنا؟',
+                correct: 'leaves',
+                options: ['fruits', 'leaves', 'flowers'],
+                explanation: 'ممتاز! الأوراق هي مصنع طاقة النبات بعملية البناء الضوئي!'
+            },
+            {
+                question: 'أنا الدعامة التي تحمل الأوراق والأزهار، وأقوم بنقل الماء والتقويات بين الجذور والأوراق، فمن أنا؟',
+                correct: 'stem',
+                options: ['roots', 'stem', 'fruits'],
+                explanation: 'أحسنت! الساق تنقل الموارد كالأنبوب في جميع أجزاء النبات!'
+            },
+            {
+                question: 'أنا الجزء الملون والجميل ذو الرائحة العطرة، ووظيفتي تكوين الثمار والبذور، فمن أنا؟',
+                correct: 'flowers',
+                options: ['flowers', 'roots', 'stem'],
+                explanation: 'صحيح! الأزهار تجذب الفراشات والنحل وتتحول إلى ثمار لديدة!'
+            },
+            {
+                question: 'أنا الجزء اللذيذ والمفيد الذي يحتوي على البذور بداخلي، فمن أنا؟',
+                correct: 'fruits',
+                options: ['leaves', 'fruits', 'flowers'],
+                explanation: 'إجابة ممتازة! الثمار تحمي البذور بداخلها وتمنحنا طعاماً صحياً!'
+            }
+        ];
+
+        // Global State variables
+        let soundEnabled = true;
+        let score = 0;
+        let currentStage = 0;
+        let discoveredPartsStage1 = new Set();
+        let matchedPartsStage2 = new Set();
+        let currentQuizIndex = 0;
+        let shuffledQuestions = [];
+        let selectedDraggableTag = null;
+
+        /* ==========================================================
+           WEB AUDIO API SOUND EFFECTS (No external files needed)
+           ========================================================== */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fas fa-volume-up';
+            } else {
+                icon.className = 'fas fa-volume-mute text-red-500';
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'pop') {
+                // Discover sound
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'correct') {
+                // Success sound (Arpeggio)
+                const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                freqs.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    const startTime = now + idx * 0.08;
+                    gain.gain.setValueAtTime(0.2, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.25);
+                });
+            } else if (type === 'wrong') {
+                // Error sound
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                // Victory Fanfare
+                const notes = [440, 554.37, 659.25, 880];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const startTime = now + i * 0.12;
+                    gain.gain.setValueAtTime(0.3, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.4);
+                });
+            }
+        }
+
+        /* ==========================================================
+           FALLBACK SVG GENERATOR (Used if plant.png is missing)
+           ========================================================== */
+        function loadFallbackSvg(imgElement) {
+            const svgCode = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 550" width="100%" height="100%">
+                <defs>
+                    <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#8d5b4c"/>
+                        <stop offset="100%" stop-color="#5d3a2e"/>
+                    </linearGradient>
+                </defs>
+                <!-- Soil background for roots -->
+                <rect x="0" y="380" width="500" height="170" fill="url(#soil)" rx="10"/>
+                
+                <!-- Roots -->
+                <g stroke="#fbc02d" stroke-width="6" stroke-linecap="round" fill="none">
+                    <path d="M250 380 Q240 430 210 470 Q190 490 150 510"/>
+                    <path d="M250 380 Q260 420 290 460 Q320 490 360 520"/>
+                    <path d="M250 380 M250 400 Q230 440 250 490 Q255 520 250 540"/>
+                    <path d="M230 430 Q200 450 170 460"/>
+                    <path d="M270 420 Q300 440 330 450"/>
+                </g>
+                <text x="250" y="480" font-family="Cairo" font-weight="900" font-size="20" fill="#fff" text-anchor="middle">الجذور 🪴</text>
+
+                <!-- Stem -->
+                <g stroke="#4caf50" stroke-width="12" stroke-linecap="round" fill="none">
+                    <path d="M250 380 Q245 280 230 180"/>
+                    <path d="M245 310 Q180 260 140 240"/>
+                    <path d="M240 250 Q310 210 350 180"/>
+                </g>
+                
+                <!-- Leaves -->
+                <!-- Left Leaf -->
+                <path d="M140 240 Q100 180 150 160 Q200 180 140 240 Z" fill="#66bb6a" stroke="#2e7d32" stroke-width="3"/>
+                <!-- Top Center Leaf -->
+                <path d="M230 180 Q200 100 250 80 Q300 100 230 180 Z" fill="#4caf50" stroke="#1b5e20" stroke-width="3"/>
+                <!-- Right Leaf -->
+                <path d="M350 180 Q400 120 430 170 Q400 220 350 180 Z" fill="#81c784" stroke="#2e7d32" stroke-width="3"/>
+
+                <!-- Strawberries (Fruits) -->
+                <g transform="translate(130, 260)">
+                    <path d="M0 0 Q15 -10 30 0 Q35 25 15 40 Q-5 25 0 0 Z" fill="#e53935"/>
+                    <path d="M0 0 Q15 -8 30 0 L15 -10 Z" fill="#4caf50"/>
+                    <circle cx="10" cy="15" r="1.5" fill="#ffeb3b"/>
+                    <circle cx="20" cy="20" r="1.5" fill="#ffeb3b"/>
+                </g>
+
+                <g transform="translate(320, 230)">
+                    <path d="M0 0 Q15 -10 30 0 Q35 25 15 40 Q-5 25 0 0 Z" fill="#e53935"/>
+                    <path d="M0 0 Q15 -8 30 0 L15 -10 Z" fill="#4caf50"/>
+                    <circle cx="10" cy="15" r="1.5" fill="#ffeb3b"/>
+                    <circle cx="20" cy="20" r="1.5" fill="#ffeb3b"/>
+                </g>
+
+                <!-- Flower -->
+                <g transform="translate(360, 120)">
+                    <circle cx="-15" cy="0" r="12" fill="#ffffff" stroke="#e0e0e0"/>
+                    <circle cx="15" cy="0" r="12" fill="#ffffff" stroke="#e0e0e0"/>
+                    <circle cx="0" cy="-15" r="12" fill="#ffffff" stroke="#e0e0e0"/>
+                    <circle cx="0" cy="15" r="12" fill="#ffffff" stroke="#e0e0e0"/>
+                    <circle cx="0" cy="0" r="10" fill="#fbc02d"/>
+                </g>
+            </svg>`;
+            
+            imgElement.onerror = null;
+            imgElement.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgCode);
+        }
+
+        /* ==========================================================
+           GAME FLOW NAVIGATION & SCORES
+           ========================================================== */
+        
+        function addScore(points) {
+            score += points;
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function updateProgress(percentage) {
+            document.getElementById('progress-bar-fill').style.width = percentage + '%';
+        }
+
+        function startGame() {
+            initAudio();
+            playSound('pop');
+            
+            score = 0;
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('game-stats-bar').classList.remove('hidden');
+            document.getElementById('progress-bar-container').classList.remove('hidden');
+
+            goToStage(1);
+        }
+
+        function goToStage(stageNum) {
+            currentStage = stageNum;
+            playSound('pop');
+
+            // Hide all screens
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-stage1').classList.add('hidden');
+            document.getElementById('screen-stage2').classList.add('hidden');
+            document.getElementById('screen-stage3').classList.add('hidden');
+            document.getElementById('screen-end').classList.add('hidden');
+
+            if (stageNum === 1) {
+                document.getElementById('stage-display-text').innerText = '١: اضغط واكتشف';
+                document.getElementById('screen-stage1').classList.remove('hidden');
+                updateProgress(15);
+                initStage1();
+            } else if (stageNum === 2) {
+                document.getElementById('stage-display-text').innerText = '٢: اسحب وطابق';
+                document.getElementById('screen-stage2').classList.remove('hidden');
+                updateProgress(50);
+                initStage2();
+            } else if (stageNum === 3) {
+                document.getElementById('stage-display-text').innerText = '٣: من أنا؟';
+                document.getElementById('screen-stage3').classList.remove('hidden');
+                updateProgress(80);
+                initStage3();
+            } else if (stageNum === 4) {
+                // End screen
+                document.getElementById('stage-display-text').innerText = 'اكتملت اللعبة 🏆';
+                document.getElementById('screen-end').classList.remove('hidden');
+                updateProgress(100);
+                initEndScreen();
+            }
+        }
+
+        /* ==========================================================
+           STAGE 1 LOGIC (Press & Discover)
+           ========================================================== */
+        function initStage1() {
+            discoveredPartsStage1.clear();
+            document.getElementById('s1-counter').innerText = '0';
+            document.getElementById('s1-default-prompt').classList.remove('hidden');
+            document.getElementById('s1-info-card').classList.add('hidden');
+            document.getElementById('s1-info-card').classList.remove('flex');
+            document.getElementById('s1-next-btn').classList.add('hidden');
+
+            // Reset hotspot buttons style
+            document.querySelectorAll('#screen-stage1 .hotspot-btn').forEach(btn => {
+                btn.classList.remove('discovered');
+                btn.classList.add('animate-pulse-glow');
+            });
+        }
+
+        function discoverPart(partKey) {
+            const part = PLANT_PARTS[partKey];
+            if (!part) return;
+
+            playSound('pop');
+
+            // Show details card
+            document.getElementById('s1-default-prompt').classList.add('hidden');
+            const card = document.getElementById('s1-info-card');
+            card.classList.remove('hidden');
+            card.classList.add('flex');
+
+            document.getElementById('s1-card-icon').innerText = part.icon;
+            document.getElementById('s1-card-title').innerText = part.name;
+            document.getElementById('s1-card-desc').innerText = part.desc;
+
+            // Track unique discovery
+            if (!discoveredPartsStage1.has(partKey)) {
+                discoveredPartsStage1.add(partKey);
+                addScore(10);
+                document.getElementById('s1-counter').innerText = discoveredPartsStage1.size;
+
+                // Mark button as discovered
+                event.currentTarget.classList.add('discovered');
+                event.currentTarget.classList.remove('animate-pulse-glow');
+
+                // Check if all 5 discovered
+                if (discoveredPartsStage1.size === 5) {
+                    playSound('correct');
+                    document.getElementById('s1-next-btn').classList.remove('hidden');
+                }
+            }
+        }
+
+        /* ==========================================================
+           STAGE 2 LOGIC (Drag & Drop / Match)
+           ========================================================== */
+        function initStage2() {
+            matchedPartsStage2.clear();
+            selectedDraggableTag = null;
+            document.getElementById('s2-counter').innerText = '0';
+            document.getElementById('s2-next-btn').classList.add('hidden');
+            document.getElementById('s2-feedback').style.opacity = '0';
+
+            // Reset Drop Targets
+            document.querySelectorAll('#screen-stage2 .drop-target').forEach(target => {
+                target.className = 'drop-target absolute rounded-xl p-1 flex items-center justify-center text-center font-black text-xs md:text-sm shadow-md';
+                const partKey = target.getAttribute('data-part');
+                target.innerHTML = `<span class="placeholder-text text-gray-400">مربع ${PLANT_PARTS[partKey].name}</span>`;
+            });
+
+            // Populate Draggable Cards Bank
+            const bank = document.getElementById('draggable-bank');
+            bank.innerHTML = '';
+
+            // Shuffle keys
+            const keys = Object.keys(PLANT_PARTS).sort(() => Math.random() - 0.5);
+
+            keys.forEach(key => {
+                const part = PLANT_PARTS[key];
+                const card = document.createElement('div');
+                card.id = `draggable-${key}`;
+                card.setAttribute('draggable', 'true');
+                card.setAttribute('data-part', key);
+                card.className = 'draggable-item bg-gradient-to-r from-amber-100 to-yellow-200 border-2 border-amber-400 text-amber-950 font-black p-3 rounded-2xl shadow flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-95 transition-all';
+                card.innerHTML = `<span class="text-xl">${part.icon}</span><span>${part.name}</span>`;
+
+                // Drag & Drop Events
+                card.addEventListener('dragstart', handleDragStart);
+
+                // Click/Touch fallback selection
+                card.addEventListener('click', () => handleTagClick(card));
+
+                bank.appendChild(card);
+            });
+
+            // Target Drop Zone Event Listeners
+            document.querySelectorAll('#screen-stage2 .drop-target').forEach(target => {
+                target.addEventListener('dragover', handleDragOver);
+                target.addEventListener('dragleave', handleDragLeave);
+                target.addEventListener('drop', handleDrop);
+                target.addEventListener('click', () => handleTargetClick(target));
+            });
+        }
+
+        // Tag click fallback
+        function handleTagClick(card) {
+            if (card.classList.contains('hidden')) return;
+            
+            document.querySelectorAll('.draggable-item').forEach(c => c.classList.remove('selected'));
+            
+            if (selectedDraggableTag === card) {
+                selectedDraggableTag = null;
+            } else {
+                selectedDraggableTag = card;
+                card.classList.add('selected');
+                playSound('pop');
+            }
+        }
+
+        function handleTargetClick(target) {
+            if (!selectedDraggableTag) return;
+            const partKey = selectedDraggableTag.getAttribute('data-part');
+            attemptMatch(partKey, target, selectedDraggableTag);
+            selectedDraggableTag = null;
+            document.querySelectorAll('.draggable-item').forEach(c => c.classList.remove('selected'));
+        }
+
+        // Drag handlers
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-part'));
+            playSound('pop');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('hovered');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('hovered');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const target = e.currentTarget;
+            target.classList.remove('hovered');
+            const draggedPartKey = e.dataTransfer.getData('text/plain');
+            const draggedCard = document.getElementById(`draggable-${draggedPartKey}`);
+            
+            attemptMatch(draggedPartKey, target, draggedCard);
+        }
+
+        function attemptMatch(partKey, target, cardElement) {
+            const targetPartKey = target.getAttribute('data-part');
+            const feedbackEl = document.getElementById('s2-feedback');
+
+            if (partKey === targetPartKey) {
+                // Correct Match!
+                playSound('correct');
+                addScore(15);
+                matchedPartsStage2.add(partKey);
+
+                target.classList.add('correct');
+                target.innerHTML = `<span class="text-green-800 font-extrabold flex items-center gap-1">${PLANT_PARTS[partKey].icon} ${PLANT_PARTS[partKey].name} ✔️</span>`;
+
+                if (cardElement) {
+                    cardElement.classList.add('hidden');
+                }
+
+                // Show Feedback
+                feedbackEl.className = 'min-h-[50px] flex items-center justify-center rounded-2xl p-3 font-black text-center text-base bg-green-100 text-green-900 border-2 border-green-400 opacity-100 animate-pop';
+                feedbackEl.innerHTML = '<span>أحسنت! إجابة صحيحة ⭐</span>';
+
+                document.getElementById('s2-counter').innerText = matchedPartsStage2.size;
+
+                if (matchedPartsStage2.size === 5) {
+                    document.getElementById('s2-next-btn').classList.remove('hidden');
+                }
+            } else {
+                // Wrong Match
+                playSound('wrong');
+                feedbackEl.className = 'min-h-[50px] flex items-center justify-center rounded-2xl p-3 font-black text-center text-base bg-red-100 text-red-900 border-2 border-red-400 opacity-100 animate-shake';
+                feedbackEl.innerHTML = '<span>حاول مرة أخرى 💪</span>';
+            }
+        }
+
+        /* ==========================================================
+           STAGE 3 LOGIC (Who Am I Quiz)
+           ========================================================== */
+        function initStage3() {
+            currentQuizIndex = 0;
+            // Shuffle questions array
+            shuffledQuestions = [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5);
+            document.getElementById('s3-quiz-total').innerText = shuffledQuestions.length;
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const q = shuffledQuestions[currentQuizIndex];
+            document.getElementById('s3-quiz-index').innerText = currentQuizIndex + 1;
+            document.getElementById('s3-question-text').innerText = q.question;
+
+            // Reset Explanation & Next Button
+            const expBox = document.getElementById('s3-explanation-box');
+            expBox.classList.add('hidden');
+            document.getElementById('s3-next-q-btn').classList.add('hidden');
+
+            // Populate Options
+            const optionsContainer = document.getElementById('s3-options-container');
+            optionsContainer.innerHTML = '';
+
+            // Shuffle options
+            const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(partKey => {
+                const part = PLANT_PARTS[partKey];
+                const btn = document.createElement('button');
+                btn.className = 'quiz-opt-btn bg-emerald-50 hover:bg-emerald-100 border-3 border-emerald-300 hover:border-emerald-500 text-emerald-950 font-black p-5 rounded-2xl text-xl flex flex-col items-center gap-2 shadow-md transition-all transform hover:-translate-y-1 active:translate-y-0';
+                btn.innerHTML = `<span class="text-4xl">${part.icon}</span><span>${part.name}</span>`;
+                
+                btn.onclick = () => checkQuizAnswer(partKey, q, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkQuizAnswer(selectedKey, q, clickedBtn) {
+            // Disable all option buttons
+            document.querySelectorAll('.quiz-opt-btn').forEach(btn => btn.disabled = true);
+
+            const expBox = document.getElementById('s3-explanation-box');
+            const expTitle = document.getElementById('s3-explanation-title');
+            const expText = document.getElementById('s3-explanation-text');
+
+            if (selectedKey === q.correct) {
+                // Correct!
+                playSound('correct');
+                addScore(20);
+
+                clickedBtn.className = 'quiz-opt-btn bg-green-500 text-white border-4 border-green-700 font-black p-5 rounded-2xl text-xl flex flex-col items-center gap-2 shadow-lg animate-pop';
+
+                expBox.className = 'p-5 rounded-2xl font-bold border-2 bg-green-50 border-green-400 text-green-900 animate-pop block';
+                expTitle.innerHTML = '<span>رائع! 🎉 إجابة مذهلة</span>';
+                expText.innerText = q.explanation;
+            } else {
+                // Wrong
+                playSound('wrong');
+                clickedBtn.className = 'quiz-opt-btn bg-red-400 text-white border-4 border-red-600 font-black p-5 rounded-2xl text-xl flex flex-col items-center gap-2 shadow-lg animate-shake';
+
+                expBox.className = 'p-5 rounded-2xl font-bold border-2 bg-red-50 border-red-400 text-red-900 animate-pop block';
+                expTitle.innerHTML = '<span>حاول التركيز في المرة القادمة 💪</span>';
+                expText.innerText = `الإجابة الصحيحة هي: (${PLANT_PARTS[q.correct].name}). ${q.explanation}`;
+            }
+
+            document.getElementById('s3-next-q-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuizIndex++;
+            if (currentQuizIndex < shuffledQuestions.length) {
+                loadQuestion();
+            } else {
+                goToStage(4); // Victory
+            }
+        }
+
+        /* ==========================================================
+           VICTORY & RESTART LOGIC
+           ========================================================== */
+        function initEndScreen() {
+            playSound('win');
+            document.getElementById('final-stars-count').innerText = score;
+            startConfetti();
+        }
+
+        function restartGame() {
+            score = 0;
+            currentStage = 0;
+            stopConfetti();
+            document.getElementById('score-display').innerText = '0';
+            startGame();
+        }
+
+        /* Confetti Animation Generator */
+        let confettiInterval = null;
+        const canvas = document.getElementById('canvas-confetti');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startConfetti() {
+            particles = [];
+            for (let i = 0; i < 120; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    speedY: Math.random() * 3 + 2,
+                    speedX: (Math.random() - 0.5) * 2
+                });
+            }
+
+            if (!confettiInterval) {
+                confettiInterval = setInterval(drawConfetti, 1000 / 60);
+            }
+        }
+
+        function stopConfetti() {
+            if (confettiInterval) {
+                clearInterval(confettiInterval);
+                confettiInterval = null;
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p) => {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                p.y += p.speedY;
+                p.x += p.speedX;
+
+                if (p.y > canvas.height) {
+                    p.y = -10;
+                    p.x = Math.random() * canvas.width;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
